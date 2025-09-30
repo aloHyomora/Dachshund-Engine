@@ -1,0 +1,14 @@
+{
+  "name": "dachshund-dashboard",
+  "version-string": "0.1.0",
+  "builtin-baseline": "d56a38a1f935f36e3033b6506123f96fc72979e7",
+  "dependencies": [
+    "glfw3",
+    "glad",
+    {
+      "name": "imgui",
+      "features": ["glfw-binding", "opengl3-binding"]
+    },
+    "implot"    
+  ]
+}
