@@ -111,7 +111,7 @@ int main()
     #endif
 
     // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
+    ImGui::StyleColorsClassic();
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -192,7 +192,7 @@ int main()
             // Main monitoring window with header
             ImGui::SetNextWindowPos(ImVec2(10, 30), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(1420, 680), ImGuiCond_FirstUseEver);
-
+            
             ImGui::Begin("Monitoring Mode", &monitoring_mode, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
             if (ImGui::BeginMenuBar()) {
