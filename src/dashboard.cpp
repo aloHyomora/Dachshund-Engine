@@ -20,6 +20,8 @@ static void glfw_error_callback(int error, const char* description)
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
+
+// TODO: 코드 구조 분리하기: ConnectionStatus, SensorData
 // Connection and sensor data structures
 struct ConnectionStatus {
     bool is_connected = false;
