@@ -118,7 +118,7 @@ int main()
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     // Mode management
-    bool monitoring_mode = false;
+    bool monitoring_mode = true;
     
     // Connection management
     ConnectionStatus connection;
