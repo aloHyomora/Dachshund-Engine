@@ -83,7 +83,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(1920, 1080, "Dachshund Engine - Raspberry Pi Sensor Dashboard", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1440, 720, "Dachshund Engine - Raspberry Pi Sensor Dashboard", nullptr, nullptr);
     if (window == nullptr)
         return -1;
 
@@ -117,13 +117,8 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    // Window visibility flags
-    bool show_connection_status = true;
-    bool show_system_status = true;
-    bool show_temperature_monitor = true;
-    bool show_environmental_sensors = true;
-    bool show_motion_proximity = true;
-    bool show_data_logging = true;
+    // Mode management
+    bool monitoring_mode = false;
     
     // Connection management
     ConnectionStatus connection;
@@ -182,12 +177,7 @@ int main()
         // Create main menu bar
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("Windows")) {
-                ImGui::MenuItem("Connection Status", nullptr, &show_connection_status);
-                ImGui::MenuItem("System Status", nullptr, &show_system_status);
-                ImGui::MenuItem("Temperature Monitor", nullptr, &show_temperature_monitor);
-                ImGui::MenuItem("Environmental Sensors", nullptr, &show_environmental_sensors);
-                ImGui::MenuItem("Motion/Proximity", nullptr, &show_motion_proximity);
-                ImGui::MenuItem("Data Logging", nullptr, &show_data_logging);
+                ImGui::MenuItem("Monitoring Mode", nullptr, &monitoring_mode);
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Debug")) {
@@ -197,25 +187,38 @@ int main()
             ImGui::EndMainMenuBar();
         }
 
-        // 1. Connection Status Window
-        if (show_connection_status) {
-            ImGui::Begin("Connection Status", &show_connection_status);
-            
-            ImGui::Text("Raspberry Pi Connection");
+        // Monitoring Mode
+        if (monitoring_mode) {
+            // Main monitoring window with header
+            ImGui::SetNextWindowPos(ImVec2(10, 30), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(1420, 680), ImGuiCond_FirstUseEver);
+
+            ImGui::Begin("Monitoring Mode", &monitoring_mode, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+            if (ImGui::BeginMenuBar()) {
+                ImGui::Text("Raspberry Pi Sensor Monitoring Dashboard");
+                ImGui::EndMenuBar();
+            }
+
+            // Create grid layout for 6 windows (2x3)
+            float window_width = (ImGui::GetContentRegionAvail().x - 20) / 3;
+            float window_height = (ImGui::GetContentRegionAvail().y - 10) / 2;
+
+            // First row
+            // 1. Connection Status
+            ImGui::BeginChild("ConnectionStatus", ImVec2(window_width, window_height), true);             
+            ImGui::Text("Connection Status");
             ImGui::Separator();
             
-            // Connection status indicator
             if (connection.is_connected) {
-                ImGui::TextColored(ImVec4(0, 1, 0, 1), "CONNECTED");
+                ImGui::TextColored(ImVec4(0, 1, 0, 1), "● CONNECTED");
                 ImGui::Text("Status: %s", connection.status_message.c_str());
-                ImGui::Text("Last Data: %.1f seconds ago", current_time - connection.last_data_time);
+                ImGui::Text("Last Data: %.1f sec ago", current_time - connection.last_data_time);
             } else {
-                ImGui::TextColored(ImVec4(1, 0, 0, 1), " DISCONNECTED");
+                ImGui::TextColored(ImVec4(1, 0, 0, 1), "● DISCONNECTED");
                 ImGui::Text("Status: %s", connection.status_message.c_str());
                 ImGui::Text("Reconnect Attempts: %d", connection.reconnect_attempts);
             }
-            
-            ImGui::Separator();
             
             if (!connection.is_connected) {
                 if (ImGui::Button("Retry Connection")) {
@@ -223,135 +226,117 @@ int main()
                     std::cout << "Attempting to reconnect... (Attempt " << connection.reconnect_attempts << ")" << std::endl;
                 }
             }
-            
-            // Debug toggle
-            ImGui::Checkbox("Simulate Connection (Debug)", &simulate_connection);
-            
-            ImGui::End();
-        }
+            ImGui::Checkbox("Simulate Connection", &simulate_connection);
+            ImGui::EndChild();
 
-        // 2. System Status Window
-        if (show_system_status) {
-            ImGui::Begin("System Status", &show_system_status);
-            
-            ImGui::Text("Raspberry Pi System Monitor");
+            ImGui::SameLine();
+
+            // 2. System Status
+            ImGui::BeginChild("SystemStatus", ImVec2(window_width, window_height), true);
+            ImGui::Text("System Status");
             ImGui::Separator();
             
             if (connection.is_connected && current_data.data_valid) {
-                ImGui::Text("CPU Usage: %.1f%%", current_data.cpu_usage);
-                ImGui::ProgressBar(current_data.cpu_usage / 100.0f);
-                
-                ImGui::Text("Memory Usage: %.1f%%", current_data.memory_usage);
-                ImGui::ProgressBar(current_data.memory_usage / 100.0f);
+                ImGui::Text("CPU: %.1f%%", current_data.cpu_usage);
+                ImGui::ProgressBar(current_data.cpu_usage / 100.0f, ImVec2(-1, 0));
+                ImGui::Text("Memory: %.1f%%", current_data.memory_usage);
+                ImGui::ProgressBar(current_data.memory_usage / 100.0f, ImVec2(-1, 0));
             } else {
-                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "No system data - Device not connected");
-                ImGui::Text("CPU Usage: --%%");
-                ImGui::ProgressBar(0.0f);
-                ImGui::Text("Memory Usage: --%%");
-                ImGui::ProgressBar(0.0f);
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "No system data");
+                ImGui::Text("CPU: --%");
+                ImGui::ProgressBar(0.0f, ImVec2(-1, 0));
+                ImGui::Text("Memory: --%");
+                ImGui::ProgressBar(0.0f, ImVec2(-1, 0));
             }
-            
-            ImGui::Separator();
-            ImGui::Text("Dashboard FPS: %.1f", io.Framerate);
-            
-            ImGui::End();
-        }
+            ImGui::Text("FPS: %.1f", io.Framerate);
+            ImGui::EndChild();
 
-        // 3. Temperature Monitor Window
-        if (show_temperature_monitor) {
-            ImGui::Begin("Temperature Monitor", &show_temperature_monitor);
+            ImGui::SameLine();
+
+            // 3. Temperature Monitor
+            ImGui::BeginChild("TemperatureMonitor", ImVec2(window_width, window_height), true);
+            ImGui::Text("Temperature Monitor");
+            ImGui::Separator();
             
             if (connection.is_connected && current_data.data_valid) {
-                ImGui::Text("Current Temperature: %.2f°C", current_data.temperature);
+                ImGui::Text("Temperature: %.2f°C", current_data.temperature);
                 
-                if (!temp_data.empty() && ImPlot::BeginPlot("Temperature Over Time")) {
-                    ImPlot::PlotLine("Temperature (°C)", time_data.data(), temp_data.data(), temp_data.size());
+                if (!temp_data.empty() && ImPlot::BeginPlot("Temp", ImVec2(-1, window_height * 0.6f))) {
+                    ImPlot::PlotLine("°C", time_data.data(), temp_data.data(), temp_data.size());
                     ImPlot::EndPlot();
                 }
                 
-                // Temperature alerts
                 if (current_data.temperature > 28.0f) {
-                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "⚠ High Temperature Warning!");
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "⚠ High Temp!");
                 } else if (current_data.temperature < 22.0f) {
-                    ImGui::TextColored(ImVec4(0, 0, 1, 1), "❄ Low Temperature");
+                    ImGui::TextColored(ImVec4(0, 0, 1, 1), "❄ Low Temp");
                 }
             } else {
-                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "No temperature data available");
-                ImGui::Text("Connect to Raspberry Pi to view temperature data");
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "No temperature data");
             }
-            
-            ImGui::End();
-        }
+            ImGui::EndChild();
 
-        // 4. Environmental Sensors Window
-        if (show_environmental_sensors) {
-            ImGui::Begin("Environmental Sensors", &show_environmental_sensors);
+            // Second row
+            // 4. Environmental Sensors
+            ImGui::BeginChild("EnvironmentalSensors", ImVec2(window_width, window_height), true);
+            ImGui::Text("Environmental Sensors");
+            ImGui::Separator();
             
             if (connection.is_connected && current_data.data_valid) {
                 ImGui::Text("Humidity: %.1f%%", current_data.humidity);
                 ImGui::Text("Pressure: %.1f hPa", current_data.pressure);
-                ImGui::Text("Light Level: %.1f%%", current_data.light);
+                ImGui::Text("Light: %.1f%%", current_data.light);
                 
-                if (!humidity_data.empty() && ImPlot::BeginPlot("Environmental Data")) {
-                    ImPlot::PlotLine("Humidity (%)", time_data.data(), humidity_data.data(), humidity_data.size());
-                    ImPlot::PlotLine("Light Level (%)", time_data.data(), light_data.data(), light_data.size());
+                if (!humidity_data.empty() && ImPlot::BeginPlot("Environment", ImVec2(-1, window_height * 0.5f))) {
+                    ImPlot::PlotLine("Humidity", time_data.data(), humidity_data.data(), humidity_data.size());
+                    ImPlot::PlotLine("Light", time_data.data(), light_data.data(), light_data.size());
                     ImPlot::EndPlot();
                 }
             } else {
-                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "No environmental data available");
-                ImGui::Text("Humidity: -- %%");
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "No environmental data");
+                ImGui::Text("Humidity: --%");
                 ImGui::Text("Pressure: -- hPa");
-                ImGui::Text("Light Level: -- %%");
+                ImGui::Text("Light: --%");
             }
-            
-            ImGui::End();
-        }
+            ImGui::EndChild();
 
-        // 5. Motion/Proximity Window
-        if (show_motion_proximity) {
-            ImGui::Begin("Motion/Proximity Sensors", &show_motion_proximity);
+            ImGui::SameLine();
+
+            // 5. Motion/Proximity Sensors
+            ImGui::BeginChild("MotionProximity", ImVec2(window_width, window_height), true);
+            ImGui::Text("Motion/Proximity");
+            ImGui::Separator();
             
             ImGui::Text("Motion Detection:");
             if (connection.is_connected && current_data.data_valid) {
                 if (current_data.motion_detected) {
-                    ImGui::SameLine();
-                    ImGui::TextColored(ImVec4(1, 0, 0, 1), " MOTION DETECTED");
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "● MOTION DETECTED");
                 } else {
-                    ImGui::SameLine();
-                    ImGui::TextColored(ImVec4(0, 1, 0, 1), " No Motion");
+                    ImGui::TextColored(ImVec4(0, 1, 0, 1), "● No Motion");
                 }
-                
-                ImGui::Separator();
-                ImGui::Text("PIR Sensor: %s", current_data.motion_detected ? "Triggered" : "Idle");
+                ImGui::Text("PIR: %s", current_data.motion_detected ? "Triggered" : "Idle");
             } else {
-                ImGui::SameLine();
-                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), " No Data");
-                
-                ImGui::Separator();
-                ImGui::Text("PIR Sensor: No connection");
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "● No Data");
+                ImGui::Text("PIR: No connection");
             }
-            
-            ImGui::Text("Ultrasonic Distance: %s", (connection.is_connected && current_data.data_valid) ? "-- cm" : "No connection");
-            
-            ImGui::End();
-        }
+            ImGui::Text("Distance: %s", (connection.is_connected && current_data.data_valid) ? "-- cm" : "No connection");
+            ImGui::EndChild();
 
-        // 6. Data Logging Window
-        if (show_data_logging) {
-            ImGui::Begin("Data Logging", &show_data_logging);
-            
-            ImGui::Text("Data Collection Status");
+            ImGui::SameLine();
+
+            // 6. Data Logging
+            ImGui::BeginChild("DataLogging", ImVec2(window_width, window_height), true);
+            ImGui::Text("Data Logging");
             ImGui::Separator();
             
             if (connection.is_connected) {
-                ImGui::TextColored(ImVec4(0, 1, 0, 1), " Data collection active");
-                ImGui::Text("Total Data Points: %zu", time_data.size());
-                ImGui::Text("Collection Rate: Real-time");
+                ImGui::TextColored(ImVec4(0, 1, 0, 1), "● Collection active");
+                ImGui::Text("Data Points: %zu", time_data.size());
+                ImGui::Text("Rate: Real-time");
                 
                 if (ImGui::Button("Export Data")) {
                     std::cout << "Exporting sensor data..." << std::endl;
                 }
-                ImGui::SameLine();
                 if (ImGui::Button("Clear Data")) {
                     time_data.clear();
                     temp_data.clear();
@@ -360,13 +345,13 @@ int main()
                     light_data.clear();
                 }
             } else {
-                ImGui::TextColored(ImVec4(1, 0, 0, 1), "Data collection stopped");
-                ImGui::Text("Total Data Points: %zu (cached)", time_data.size());
-                ImGui::Text("Collection Rate: Waiting for connection");
-                
-                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "Connect to Raspberry Pi to resume data collection");
+                ImGui::TextColored(ImVec4(1, 0, 0, 1), "● Collection stopped");
+                ImGui::Text("Data Points: %zu (cached)", time_data.size());
+                ImGui::Text("Rate: Waiting...");
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "Connect to resume");
             }
-            
+            ImGui::EndChild();
+
             ImGui::End();
         }
 
