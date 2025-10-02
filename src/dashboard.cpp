@@ -7,7 +7,9 @@
 #include <implot.h>
 #include <cmath>
 #include <vector>
-#include <random>
+
+// 분리된 센서 타입 포함
+#include "core/sensor/SensorManager.h"
 
 // Define ImGui docking flags if not available
 #ifndef IMGUI_HAS_DOCK
@@ -15,61 +17,11 @@
 #define ImGuiDockNodeFlags_None 0
 #endif
 
+using namespace DachshundEngine::Sensor;
+
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
-}
-
-
-// TODO: 코드 구조 분리하기: ConnectionStatus, SensorData
-// Connection and sensor data structures
-struct ConnectionStatus {
-    bool is_connected = false;
-    float last_data_time = 0.0f;
-    int reconnect_attempts = 0;
-    std::string status_message = "Not Connected";
-};
-
-struct SensorData {
-    float temperature = 0.0f;
-    float humidity = 0.0f;
-    float pressure = 0.0f;
-    float light = 0.0f;
-    bool motion_detected = false;
-    float cpu_usage = 0.0f;
-    float memory_usage = 0.0f;
-    bool data_valid = false;
-};
-
-// Generate mock sensor data only when connected
-SensorData generateMockData(bool is_connected) {
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_real_distribution<> temp_dist(20.0, 30.0);
-    static std::uniform_real_distribution<> humidity_dist(40.0, 80.0);
-    static std::uniform_real_distribution<> pressure_dist(1000.0, 1020.0);
-    static std::uniform_real_distribution<> light_dist(0.0, 100.0);
-    static std::uniform_real_distribution<> cpu_dist(10.0, 90.0);
-    static std::uniform_real_distribution<> mem_dist(30.0, 70.0);
-    static std::uniform_int_distribution<> motion_dist(0, 1);
-    
-    SensorData data;
-    
-    if (is_connected) {
-        data.temperature = temp_dist(gen);
-        data.humidity = humidity_dist(gen);
-        data.pressure = pressure_dist(gen);
-        data.light = light_dist(gen);
-        data.motion_detected = motion_dist(gen);
-        data.cpu_usage = cpu_dist(gen);
-        data.memory_usage = mem_dist(gen);
-        data.data_valid = true;
-    } else {
-        // No data when not connected
-        data.data_valid = false;
-    }
-    
-    return data;
 }
 
 int main()
@@ -122,7 +74,8 @@ int main()
     // Mode management
     bool monitoring_mode = true;
     
-    // Connection management
+    // 센서 매니저 초기화 (기본값: 목 데이터 모드)
+    SensorDataManager sensorManager(SensorMode::MOCK_DATA);
     ConnectionStatus connection;
     bool simulate_connection = false; // Toggle for testing
     
@@ -140,21 +93,14 @@ int main()
         
         float current_time = glfwGetTime();
         
-        // Update connection status
-        connection.is_connected = simulate_connection;
-        if (connection.is_connected) {
-            connection.status_message = "Connected to Raspberry Pi";
-            connection.last_data_time = current_time;
-            connection.reconnect_attempts = 0;
-        } else {
-            connection.status_message = "Not Connected - Waiting for Raspberry Pi";
-        }
+        // 연결 상태 업데이트
+        connection.updateStatus(sensorManager.isConnected(), current_time);
 
-        // Generate sensor data only when connected
-        SensorData current_data = generateMockData(connection.is_connected);
+        // 센서 데이터 가져오기
+        SensorData current_data = sensorManager.getCurrentSensorData();
         
         // Store data for plotting only when connected and data is valid
-        if (connection.is_connected && current_data.data_valid) {
+        if (current_data.isValid()) {   // 목 데이터 확인 용 조건 주석처리 connection.is_connected && 
             time_data.push_back(current_time);
             temp_data.push_back(current_data.temperature);
             humidity_data.push_back(current_data.humidity);
@@ -224,7 +170,7 @@ int main()
             
             if (!connection.is_connected) {
                 if (ImGui::Button("Retry Connection")) {
-                    connection.reconnect_attempts++;
+                    connection.incrementReconnectAttempts();
                     std::cout << "Attempting to reconnect... (Attempt " << connection.reconnect_attempts << ")" << std::endl;
                 }
             }
