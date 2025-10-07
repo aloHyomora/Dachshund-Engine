@@ -15,6 +15,7 @@ find_package(implot CONFIG REQUIRED)
 
 add_library(SensorCore
     src/core/sensor/SensorManager.cpp
+    src/core/network/NetworkClient.cpp
 )
 
 add_executable(dashboard src/dashboard.cpp)    
@@ -26,5 +27,15 @@ target_link_libraries(dashboard PRIVATE
     imgui::imgui
     implot::implot
 )
+
+# Windows에서 Winsock 라이브러리 링크
+if(WIN32)
+    target_link_libraries(dashboard PRIVATE ws2_32)
+endif()
+
+# Linux에서 pthread 및 dl 라이브러리 링크
+if(UNIX AND NOT APPLE)
+    target_link_libraries(dashboard PRIVATE pthread dl)
+endif()
 
 target_include_directories(SensorCore PUBLIC include)
