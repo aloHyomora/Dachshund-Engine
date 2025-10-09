@@ -1,4 +1,5 @@
 #include "core/sensor/SensorManager.h"
+#include "core/network/NetworkClient.h"
 #include <random>
 
 namespace DachshundEngine {
@@ -55,6 +56,10 @@ namespace DachshundEngine {
                 std::string raspberry_pi_ip;
                 int raspberry_pi_port;
 
+                // 네트워크 클라이언트
+                std::unique_ptr<Network::NetworkClient> network_client;
+                SensorData latest_sensor_data;
+
                 // 목 데이터 생성기
                 std::random_device rd;
                 std::mt19937 gen{rd()};
@@ -67,6 +72,19 @@ namespace DachshundEngine {
                 std::uniform_int_distribution<> motion_dist{0, 1};
             public:
                 Impl(SensorMode mode) : current_mode(mode), connected(false) {
+                    // 네트워크 클라이언트 생성
+                    network_client = std::make_unique<Network::NetworkClient>();
+                    
+                    // 센서 데이터 수신 콜백 설정
+                    network_client->setOnSensorDataReceived([this](const SensorData& data) {
+                        this->latest_sensor_data = data;
+                    });
+
+                    // 연결 상태 변경 콜백 설정
+                    network_client->setOnConnectionStateChanged([this](Network::ConnectionState state) {
+                        this->connected = (state == Network::ConnectionState::CONNECTED);
+                    });
+
                     // 목 데이터 생성기 초기화
                     if (mode == SensorMode::MOCK_DATA) {
                         setupMockDataGenerator();
@@ -88,10 +106,11 @@ namespace DachshundEngine {
                     return data;
                 }
                 SensorData fetchRaspberryPiData() {
-                    // TODO: 실제 라즈베리파이에서 데이터 수신 (미구현)
-                    SensorData data;
-                    data.data_valid = false; // 기본적으로 유효하지 않음
-                    return data;
+                    // 네트워크에서 수신된 메시지 처리
+                    network_client->processIncomingMessages();
+                    
+                    // 최신 센서 데이터 반환
+                    return latest_sensor_data;
                 }
         };
 
@@ -110,15 +129,16 @@ namespace DachshundEngine {
             pImpl->raspberry_pi_ip = ip_address;
             pImpl->raspberry_pi_port = port;
 
-            // TODO: 실제 연결 로직 구현
-
-            pImpl->connected = false; // 임시로 false로 설정
+            // 네트워크 클라이언트로 연결 시도
+            bool success = pImpl->network_client->connect(ip_address, port);
+            pImpl->connected = success;
+            
             return pImpl->connected;
         }
 
         void SensorDataManager::disconnect() {
+            pImpl->network_client->disconnect();
             pImpl->connected = false;
-            // TODO: 실제 연결 해제 로직 구현
         }
 
         bool SensorDataManager::isConnected() const {

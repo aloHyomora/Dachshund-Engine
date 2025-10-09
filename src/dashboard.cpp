@@ -79,6 +79,11 @@ int main()
     ConnectionStatus connection;
     bool simulate_connection = false; // Toggle for testing
     
+    // 연결 설정
+    static char raspberry_pi_ip[64] = "192.168.219.111";
+    static int raspberry_pi_port = 8080;
+    static bool use_raspberry_pi = false;
+    
     ImVec4 clear_color = ImVec4(0.1f, 0.1f, 0.1f, 1.00f);
 
     // Data storage for plotting
@@ -158,23 +163,59 @@ int main()
             ImGui::Text("Connection Status");
             ImGui::Separator();
             
-            if (connection.is_connected) {
-                ImGui::TextColored(ImVec4(0, 1, 0, 1), "● CONNECTED");
-                ImGui::Text("Status: %s", connection.status_message.c_str());
-                ImGui::Text("Last Data: %.1f sec ago", current_time - connection.last_data_time);
+            // 연결 모드 선택
+            ImGui::Text("Data Source:");
+            if (ImGui::RadioButton("Mock Data", !use_raspberry_pi)) {
+                use_raspberry_pi = false;
+                sensorManager.setMode(SensorMode::MOCK_DATA);
+                sensorManager.disconnect();
+            }
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Raspberry Pi", use_raspberry_pi)) {
+                use_raspberry_pi = true;
+            }
+            
+            ImGui::Separator();
+            
+            // Raspberry Pi 연결 설정
+            if (use_raspberry_pi) {
+                ImGui::Text("Raspberry Pi Settings:");
+                ImGui::InputText("IP Address", raspberry_pi_ip, sizeof(raspberry_pi_ip));
+                ImGui::InputInt("Port", &raspberry_pi_port);
+                
+                if (!connection.is_connected) {
+                    if (ImGui::Button("Connect to Raspberry Pi", ImVec2(-1, 0))) {
+                        std::cout << "Connecting to " << raspberry_pi_ip << ":" << raspberry_pi_port << std::endl;
+                        if (sensorManager.connectToRaspberryPi(raspberry_pi_ip, raspberry_pi_port)) {
+                            std::cout << "Connected successfully!" << std::endl;
+                        } else {
+                            std::cout << "Connection failed!" << std::endl;
+                        }
+                    }
+                } else {
+                    ImGui::TextColored(ImVec4(0, 1, 0, 1), "● CONNECTED");
+                    ImGui::Text("IP: %s:%d", raspberry_pi_ip, raspberry_pi_port);
+                    ImGui::Text("Last Data: %.1f sec ago", current_time - connection.last_data_time);
+                    
+                    if (ImGui::Button("Disconnect", ImVec2(-1, 0))) {
+                        sensorManager.disconnect();
+                        std::cout << "Disconnected from Raspberry Pi" << std::endl;
+                    }
+                }
             } else {
-                ImGui::TextColored(ImVec4(1, 0, 0, 1), "● DISCONNECTED");
+                ImGui::TextColored(ImVec4(0, 1, 1, 1), "● MOCK DATA MODE");
+                ImGui::Text("Generating simulated sensor data");
+            }
+            
+            if (connection.is_connected) {
+                ImGui::Separator();
                 ImGui::Text("Status: %s", connection.status_message.c_str());
+            } else if (use_raspberry_pi) {
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1, 0, 0, 1), "● DISCONNECTED");
                 ImGui::Text("Reconnect Attempts: %d", connection.reconnect_attempts);
             }
             
-            if (!connection.is_connected) {
-                if (ImGui::Button("Retry Connection")) {
-                    connection.incrementReconnectAttempts();
-                    std::cout << "Attempting to reconnect... (Attempt " << connection.reconnect_attempts << ")" << std::endl;
-                }
-            }
-            ImGui::Checkbox("Simulate Connection", &simulate_connection);
             ImGui::EndChild();
 
             ImGui::SameLine();
