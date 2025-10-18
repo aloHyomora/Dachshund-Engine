@@ -1,19 +1,14 @@
-# Dachshund Engine: 실시간 IoT 센서 모니터링 시스템
+# Dachshund Engine: Interactive Robotic System
 
-1️⃣ 실시간 센서 데이터 수집 및 시각화
-라즈베리파이에 연결된 센서(온도, 습도, 기압, 조도, 모션 등)의 데이터를 실시간으로 수집
-ImGui/ImPlot 기반의 직관적인 그래픽 대시보드로 시각화
-시계열 그래프로 센서 변화 추이 분석
+## 프로젝트 개요
 
-2️⃣ 원격 IoT 디바이스 모니터링
-TCP/IP 네트워크를 통한 라즈베리파이 원격 연결
-Windows/Linux PC에서 센서 데이터 실시간 모니터링
-양방향 통신으로 디바이스 제어 가능
+Dachshund Engine은 Jetson Orin 기반의 상호작용 로봇 시스템(Interactive Robotic System)으로,
+사용자의 입력(명령·제스처·음성 등)에 반응하여 상호작용하고
+센서 데이터를 실시간으로 수집·시각화·제어할 수 있는 로컬 지능형 인터랙티브 플랫폼입니다.
 
-3️⃣ 크로스 플랫폼 개발 학습
-Windows/Ubuntu 모두에서 빌드/실행 가능
-CMake + vcpkg를 활용한 C++ 구조
-Pimpl 패턴, 콜백 기반 아키텍처 등 설계 패턴 학습
+본 엔진은 PC 대시보드와 Jetson 기반 제어 시스템이
+Event Bus 기반 양방향 통신 구조로 연결되어,
+센서·AI·UI 모듈 간의 독립적 확장성과 비동기 통신을 제공합니다.
 
 ## Prerequisites
 ```bash
